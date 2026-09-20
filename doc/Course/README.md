@@ -2,6 +2,8 @@
 
 A step-by-step guide to building a production project with Claude Code.
 
+> **Work in progress.** This document covers lessons 1–2. Further lessons are added here as they are written.
+
 ## Summary
 
 The production workflow has **5 phases** and **10 steps**:
