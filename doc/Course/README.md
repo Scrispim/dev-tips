@@ -2,7 +2,7 @@
 
 A step-by-step guide to building a production project with Claude Code.
 
-> **Work in progress.** This document covers lessons 1–2. Further lessons are added here as they are written.
+> **Work in progress.** This document covers lessons 1–3. Further lessons are added here as they are written.
 
 ## Summary
 
@@ -171,7 +171,7 @@ When you feed Claude a specification file, the generated code is consistent, fol
 
 > **Set up `CLAUDE.md` first.** Before generating any specification or code, create a `CLAUDE.md` file in the root of your project. This is the single most impactful thing you can do.
 >
-> `CLAUDE.md` is a Markdown file that Claude Code automatically loads into context when you open a project. It tells Claude your tech stack, architecture, coding conventions, and patterns, so every generated file is consistent from the start. (How to create one is covered in a future lesson.)
+> `CLAUDE.md` is a Markdown file that Claude Code automatically loads into context when you open a project. It tells Claude your tech stack, architecture, coding conventions, and patterns, so every generated file is consistent from the start. (See [CLAUDE.md: Your Project's Rulebook](#claudemd-your-projects-rulebook) below for a full template.)
 
 With `CLAUDE.md` in place, your specification prompt becomes much shorter. Claude already knows your project structure, file naming, patterns, and conventions. The prompt only needs to describe the business-specific content: entities, endpoints, and business rules.
 
@@ -419,3 +419,205 @@ _(write when all phases complete: step-by-step deployment instructions)_
 - **Pre-filling summaries** — phase summaries, recap, and deployment plan stay as
   placeholders until that work actually completes.
 ````
+
+---
+
+## CLAUDE.md: Your Project's Rulebook
+
+`CLAUDE.md` is a Markdown file in the root of your repository. Claude Code loads it automatically at the start of every session. Whatever you write there, Claude knows without being asked.
+
+**What belongs in `CLAUDE.md`:**
+
+- Tech stack with specific versions
+- Architecture style and project structure
+- File naming conventions
+- Patterns you use **and** patterns you explicitly ban
+- Common commands (build, test, run, migrations)
+- Testing frameworks and conventions
+
+**What does not belong there:**
+
+- Secrets, API keys, or connection strings
+- Code formatting rules (use `.editorconfig` for that)
+- Framework knowledge Claude already has
+- Large code samples
+- Domain knowledge
+
+**Template — `CLAUDE.md` for a .NET backend project:**
+
+```
+# CLAUDE.md
+
+## Overview
+[Project name] - Modular Monolith Web API
+
+## Tech Stack
+- .NET 10, ASP .NET Core Minimal APIs
+- EF Core 10 with PostgreSQL (snake_case naming convention)
+- FluentValidation for request validation
+- Result<T> pattern for error handling (no exceptions for business logic)
+- JWT Authentication with Refresh Tokens
+- OpenTelemetry for tracing and metrics
+- Serilog for structured logging
+- Swagger/OpenAPI for API documentation
+- Docker for containerization
+
+## Architecture
+- Modular Monolith with Vertical Slice Architecture
+- Clean Architecture: domain is isolated from infrastructure
+- Each module: Domain, Core, Infrastructure, PublicApi projects
+- CQRS with manual handlers (no MediatR, no interfaces)
+- Manual mapping with extension methods
+
+## Project Structure
+- src/Modules.[Name].Domain/ - Entities, value objects, enums
+- src/Modules.[Name].Core/ - Endpoints, handlers, validators
+- src/Modules.[Name].Infrastructure/ - DbContext, EF config, migrations
+- src/Modules.[Name].PublicApi/ - Cross-module contracts
+- src/Modules.Common.API/ - Shared endpoint abstractions, error handling
+- src/Modules.Common.Domain/ - Result<T>, IHandler, IEvent interfaces
+- src/ModularMonolith.Host/ - Program.cs, DI composition
+
+## File Naming
+- Features/[UseCaseName]/[UseCaseName].Endpoint.cs
+- Features/[UseCaseName]/[UseCaseName].Handler.cs
+- Features/[UseCaseName]/[UseCaseName].Validator.cs
+- Features/[UseCaseName]/[UseCaseName].Mapping.cs (if 2+ mappings)
+- Features/Shared/Routes/RouteConsts.cs
+- Features/Shared/Errors/[Module]Errors.cs
+
+## Code Conventions
+- Positional records for request/response DTOs
+- File-scoped namespaces
+- Primary constructors for dependency injection
+- Sealed classes for implementations
+- Internal by default, public only for contracts
+
+## Patterns We Use
+- Result<T> pattern for all handler return types
+- IHandler marker interface for auto-registration
+- IApiEndpoint for endpoint registration
+- RouteConsts for centralized route definitions
+- FluentValidation validators per use case
+- Bogus for test data seeding
+- EF Core DbContext directly in handlers
+
+## Patterns We Do NOT Use
+- Repository pattern
+- AutoMapper or any mapping library
+- MediatR or any mediator library
+- Exceptions for business logic flow
+- [FromServices] attribute
+
+## Testing
+- xUnit for test framework
+- Moq for mocking
+- Testcontainers for integration tests (PostgreSQL)
+- Respawn for database cleanup between tests
+- NetArchTest.Rules for architecture tests
+- Test naming: [Method]_[Scenario]_[ExpectedResult]
+
+## DI Registration
+- Each module: Add[Module]Module(services, configuration)
+- Auto-scan handlers: RegisterHandlersFromAssemblyContaining
+- Auto-scan validators: AddValidatorsFromAssembly
+- Auto-scan endpoints: RegisterApiEndpointsFromAssemblyContaining
+```
+
+The **"Patterns We Do NOT Use"** section is the one most developers forget. Claude has seen millions of repositories with AutoMapper and MediatR. If you don't ban them explicitly, they will sneak into your codebase.
+
+> Keep `CLAUDE.md` under 100 lines.
+
+### Splitting Rules into Scoped Files
+
+What if your rules don't fit in 100 lines? You split them, and you scope them.
+
+Claude Code supports rule files in `.claude/rules/` with a `paths` frontmatter. A rule file loads only when Claude works with files matching those paths:
+
+```
+---
+paths:
+  - "src/Modules.Users/**"
+---
+
+# Users Module Rules
+- Uses ASP .NET Core Identity for user management
+- JWT tokens with refresh token rotation
+- Policy-based authorization with UserPolicyConsts
+```
+
+## Skills: Procedures Claude Loads on Demand
+
+`CLAUDE.md` answers *"what is true in this project."* A **skill** answers *"how do we do this specific task?"*
+
+A skill is a folder with a `SKILL.md` file, placed in `.claude/skills/` in your repository. Here is a complete, working skill:
+
+```
+---
+name: create-endpoint
+description: Create a new ASP .NET Core Minimal API endpoint following
+our project conventions. Use whenever the user asks to add an endpoint,
+route, or API operation.
+---
+
+# Create a Minimal API Endpoint
+
+1. Create the endpoint in `Features/<UseCase>/<UseCase>.Endpoint.cs`.
+2. Implement `IApiEndpoint` and map the route from `RouteConsts`.
+3. Call the handler and convert a failed `Result<T>` with `ToProblem()`.
+```
+
+When you ask Claude to "add an endpoint for canceling a shipment," it finds this skill, follows your steps, and produces files in your exact style. Without the skill, it may invent its own structure — especially in a large codebase with many features to integrate.
+
+### Getting the Trigger Right
+
+The `description` is what decides whether the skill fires. Here is a strong one:
+
+```
+description: Create a new ASP .NET Core Minimal API endpoint following
+our project conventions (IApiEndpoint, RouteConsts, Result<T>).
+Use whenever the user asks to add an endpoint, route, or API operation.
+Do not use for gRPC or GraphQL - those have their own skills.
+```
+
+Three rules for descriptions that trigger correctly:
+
+1. **Name the concrete task and technology.** Not a vague category.
+2. **List the phrases a user would actually type.** "Add an endpoint," "create a route," "new API operation."
+3. **Say when NOT to use it.** This stops one skill from hijacking requests that belong to another.
+
+You can also invoke any skill manually by typing `/skill-name` in the chat.
+
+### Building Skills with the Skill Creator
+
+You don't have to write skills by hand. Claude ships with a built-in `/skill-creator` skill, whose job is to create other skills. Describe what you want:
+
+```
+Use the /skill-creator to build a skill for adding a new feature
+to our modular monolith. Name it as "add-new-feature".
+Our features follow Vertical Slice Architecture:
+an Endpoint, a Handler, a Validator, and a Mapping,
+all in one folder under Features/.
+Explore the existing codebase first and ask me questions about anything unclear.
+```
+
+### Ready-Made .NET Skills from Microsoft
+
+Before building everything yourself, check what already exists.
+
+The .NET team at Microsoft published an official, open-source library of skills in the [dotnet/skills](https://github.com/dotnet/skills) repository. It is MIT-licensed and built on the open Agent Skills standard, so the same skills work across Claude Code, Codex, Copilot, and Cursor.
+
+The repository ships 100+ skills grouped into plugins:
+
+- **dotnet-aspnet** — ASP .NET Core skills, including Minimal API endpoints
+- **dotnet-data** — EF Core skills, including finding and fixing N+1 query problems
+- **dotnet-test** — the largest plugin, with skills for running, filtering, and migrating tests
+- **dotnet-upgrade** — migrating projects between .NET versions
+
+In Claude Code, run `/plugin`, add the `dotnet/skills` marketplace, and install what you need:
+
+```
+/plugin install dotnet-aspnet@dotnet-agent-skills
+```
+
+These official skills cover general .NET tasks. Your own skills cover what is unique to your codebase. Together, Claude has both the framework knowledge and your house rules.

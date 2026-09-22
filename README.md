@@ -13,6 +13,7 @@ A step-by-step course on setting up and using Claude Code for production .NET pr
 | Lessons | Content | Status |
 | --- | --- | --- |
 | 1–2 | The 5 phases and 10 steps, the prompt for every step, and the plan-file convention | Published |
-| 3+ | More lessons | In progress |
+| 3 | `CLAUDE.md` as the project rulebook, scoped rule files, and skills (including the official `dotnet/skills`) | Published |
+| 4+ | More lessons | In progress |
 
 The course grows as new lessons are written — each one is added to [doc/Course/README.md](doc/Course/README.md).
